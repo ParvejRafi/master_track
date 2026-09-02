@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import {
   Building2,
   GraduationCap,
@@ -9,28 +8,45 @@ import {
   TrendingUp,
   DoorOpen,
   Users,
+  Award,
+  Mic,
 } from 'lucide-react'
-import db from '../db/schema'
+import { useCollection } from '../lib/apiDb'
 import StatsCard from '../components/StatsCard'
 import CountdownBadge from '../components/CountdownBadge'
 import LiveCountdownHero from '../components/LiveCountdownHero'
+import QuickAddSchool from '../components/QuickAddSchool'
 import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
-  const universities = useLiveQuery(() => db.universities.toArray()) || []
-  const programs = useLiveQuery(() => db.programs.toArray()) || []
-  const applications = useLiveQuery(() => db.applications.toArray()) || []
-  const tasks = useLiveQuery(() => db.tasks.toArray()) || []
-  const professors = useLiveQuery(() => db.professors.toArray()) || []
+  const universities = useCollection('universities')
+  const programs = useCollection('programs')
+  const applications = useCollection('applications')
+  const tasks = useCollection('tasks')
+  const professors = useCollection('professors')
+  const scholarships = useCollection('scholarships')
+  const conferences = useCollection('conferences')
 
   const totalUniversities = universities.length
   const totalPrograms = programs.length
   const totalApplications = applications.length
   const totalTasks = tasks.length
   const pendingTasks = tasks.filter((t) => t.status !== 'done').length
+  const totalScholarships = scholarships.length
+  const totalConferences = conferences.length
 
   const upcomingDeadlines = applications
     .filter((a) => a.deadline)
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+    .slice(0, 5)
+
+  const upcomingScholarshipDeadlines = scholarships
+    .filter((s) => s.deadline)
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+    .slice(0, 5)
+
+  const upcomingConferenceDeadlines = conferences
+    .filter((c) => c.deadline)
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     .slice(0, 5)
 
@@ -80,9 +96,12 @@ export default function Dashboard() {
             Welcome back. Here's what's happening with your applications.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted">
-          <span className="inline-block h-2 w-2 rounded-full bg-success animate-pulse" />
-          Active tracking
+        <div className="flex items-center gap-4">
+          <div className="hidden items-center gap-2 text-sm text-muted sm:flex">
+            <span className="inline-block h-2 w-2 rounded-full bg-success animate-pulse" />
+            Active tracking
+          </div>
+          <QuickAddSchool />
         </div>
       </div>
 
@@ -133,6 +152,18 @@ export default function Dashboard() {
           icon={<Briefcase className="h-5 w-5" />}
           trend={acceptedCount > 0 ? `${acceptedCount} accepted` : undefined}
           color="success"
+        />
+        <StatsCard
+          title="Scholarships"
+          value={totalScholarships}
+          icon={<Award className="h-5 w-5" />}
+          color="warning"
+        />
+        <StatsCard
+          title="Conferences"
+          value={totalConferences}
+          icon={<Mic className="h-5 w-5" />}
+          color="info"
         />
         <StatsCard
           title="Pending Tasks"
@@ -251,6 +282,98 @@ export default function Dashboard() {
                       {task.priority}
                     </span>
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-surface shadow-sm">
+          <div className="border-b border-border px-6 py-4">
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-warning" />
+              <h2 className="text-base font-semibold text-text">Scholarship Deadlines</h2>
+            </div>
+          </div>
+          <div className="p-4">
+            {upcomingScholarshipDeadlines.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="rounded-full bg-surface-hover p-3">
+                  <Award className="h-6 w-6 text-subtle" />
+                </div>
+                <p className="mt-3 text-sm text-muted">No scholarships tracked yet.</p>
+                <Link
+                  to="/scholarships"
+                  className="mt-3 text-sm font-medium text-primary hover:text-primary-hover transition-colors"
+                >
+                  Add a scholarship
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {upcomingScholarshipDeadlines.map((s) => (
+                  <Link
+                    key={s.id}
+                    to="/scholarships"
+                    className="flex items-center justify-between rounded-xl border border-border p-3 transition-all duration-200 hover:border-primary/30 hover:bg-surface-hover group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-hover text-sm font-semibold text-muted group-hover:bg-warning-soft group-hover:text-warning transition-colors">
+                        {s.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-text">{s.name}</p>
+                        <p className="text-xs text-muted">{s.provider} · {s.country}</p>
+                      </div>
+                    </div>
+                    <CountdownBadge date={s.deadline} />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-surface shadow-sm">
+          <div className="border-b border-border px-6 py-4">
+            <div className="flex items-center gap-2">
+              <Mic className="h-5 w-5 text-info" />
+              <h2 className="text-base font-semibold text-text">Conference Deadlines</h2>
+            </div>
+          </div>
+          <div className="p-4">
+            {upcomingConferenceDeadlines.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="rounded-full bg-surface-hover p-3">
+                  <Mic className="h-6 w-6 text-subtle" />
+                </div>
+                <p className="mt-3 text-sm text-muted">No conferences tracked yet.</p>
+                <Link
+                  to="/conferences"
+                  className="mt-3 text-sm font-medium text-primary hover:text-primary-hover transition-colors"
+                >
+                  Add a conference
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {upcomingConferenceDeadlines.map((c) => (
+                  <Link
+                    key={c.id}
+                    to="/conferences"
+                    className="flex items-center justify-between rounded-xl border border-border p-3 transition-all duration-200 hover:border-primary/30 hover:bg-surface-hover group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-hover text-sm font-semibold text-muted group-hover:bg-info-soft group-hover:text-info transition-colors">
+                        {c.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-text">{c.name}</p>
+                        <p className="text-xs text-muted">{c.organizer} · {c.country}</p>
+                      </div>
+                    </div>
+                    <CountdownBadge date={c.deadline} />
+                  </Link>
                 ))}
               </div>
             )}

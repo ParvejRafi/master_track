@@ -150,3 +150,44 @@ export type Note = {
   createdAt: string
   updatedAt: string
 }
+
+export type Scholarship = {
+  id: string
+  name: string
+  provider: string
+  country: string
+  level: 'Bachelor' | 'Master' | 'PhD' | 'Any'
+  amount: string
+  currency: string
+  deadline: string
+  startDate: string
+  endDate: string
+  status: 'Researching' | 'Preparing' | 'Applying' | 'Submitted' | 'Awarded' | 'Rejected' | 'Withdrawn'
+  eligibility: string
+  requirements: string
+  description: string
+  tags: string
+  website: string
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type Conference = {
+  id: string
+  name: string
+  organizer: string
+  location: string
+  country: string
+  type: 'Academic' | 'Industry' | 'Workshop' | 'Poster' | 'Keynote' | 'Virtual' | 'Other'
+  startDate: string
+  endDate: string
+  deadline: string
+  status: 'Researching' | 'Preparing' | 'Submitting' | 'Submitted' | 'Accepted' | 'Rejected' | 'Attending' | 'Withdrawn'
+  website: string
+  description: string
+  tags: string
+  notes: string
+  createdAt: string
+  updatedAt: string
+}

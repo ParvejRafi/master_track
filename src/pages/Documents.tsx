@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Pencil, Trash2, FileText, Upload, Tag } from 'lucide-react'
-import db from '../db/schema'
+import apiDb, { useCollection } from '../lib/apiDb'
 import Modal from '../components/Modal'
 import type { Document } from '../types'
 
@@ -26,7 +25,7 @@ const emptyDocument: Omit<Document, 'id' | 'createdAt'> = {
 }
 
 export default function Documents() {
-  const documents = useLiveQuery(() => db.documents.toArray()) || []
+  const documents = useCollection('documents')
   const [isOpen, setIsOpen] = useState(false)
   const [editing, setEditing] = useState<Document | null>(null)
   const [form, setForm] = useState(emptyDocument)
@@ -69,9 +68,9 @@ export default function Documents() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (editing) {
-      await db.documents.update(editing.id, form)
+      await apiDb.documents.update(editing.id, form)
     } else {
-      await db.documents.add({
+      await apiDb.documents.add({
         ...form,
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
@@ -82,7 +81,7 @@ export default function Documents() {
 
   const handleDelete = async (id: string) => {
     if (confirm('Delete this document?')) {
-      await db.documents.delete(id)
+      await apiDb.documents.delete(id)
     }
   }
 

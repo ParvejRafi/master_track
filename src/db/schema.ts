@@ -7,6 +7,8 @@ import type {
   Document,
   Note,
   Professor,
+  Scholarship,
+  Conference,
 } from '../types'
 
 const db = new Dexie('mastertrack') as Dexie & {
@@ -17,6 +19,8 @@ const db = new Dexie('mastertrack') as Dexie & {
   documents: EntityTable<Document, 'id'>
   notes: EntityTable<Note, 'id'>
   professors: EntityTable<Professor, 'id'>
+  scholarships: EntityTable<Scholarship, 'id'>
+  conferences: EntityTable<Conference, 'id'>
 }
 
 db.version(1).stores({
@@ -32,6 +36,14 @@ db.version(1).stores({
 db.version(2).stores({
   professors:
     'id, universityId, programId, contactStatus, priority, createdAt, updatedAt',
+})
+
+db.version(3).stores({
+  scholarships: 'id, name, provider, country, level, status, deadline, startDate, createdAt, updatedAt',
+})
+
+db.version(4).stores({
+  conferences: 'id, name, organizer, country, type, status, deadline, startDate, createdAt, updatedAt',
 })
 
 export default db

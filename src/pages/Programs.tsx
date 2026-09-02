@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Pencil, Trash2, GraduationCap, Building2, ExternalLink } from 'lucide-react'
-import db from '../db/schema'
+import apiDb, { useCollection } from '../lib/apiDb'
 import Modal from '../components/Modal'
 import type { Program } from '../types'
 
@@ -18,8 +17,8 @@ const emptyProgram: Omit<Program, 'id' | 'createdAt' | 'updatedAt'> = {
 }
 
 export default function Programs() {
-  const universities = useLiveQuery(() => db.universities.toArray()) || []
-  const programs = useLiveQuery(() => db.programs.toArray()) || []
+  const universities = useCollection('universities')
+  const programs = useCollection('programs')
   const [isOpen, setIsOpen] = useState(false)
   const [editing, setEditing] = useState<Program | null>(null)
   const [form, setForm] = useState(emptyProgram)
@@ -50,9 +49,9 @@ export default function Programs() {
     e.preventDefault()
     const now = new Date().toISOString()
     if (editing) {
-      await db.programs.update(editing.id, { ...form, updatedAt: now })
+      await apiDb.programs.update(editing.id, { ...form, updatedAt: now })
     } else {
-      await db.programs.add({
+      await apiDb.programs.add({
         ...form,
         id: crypto.randomUUID(),
         createdAt: now,
@@ -64,7 +63,7 @@ export default function Programs() {
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this program?')) {
-      await db.programs.delete(id)
+      await apiDb.programs.delete(id)
     }
   }
 

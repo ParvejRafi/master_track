@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus, Pencil, Trash2, Briefcase, CheckSquare, Square } from 'lucide-react'
-import db from '../db/schema'
+import { Plus, Pencil, Trash2, Briefcase, CheckSquare, Square, Sparkles } from 'lucide-react'
+import apiDb, { useCollection } from '../lib/apiDb'
 import Modal from '../components/Modal'
 import CountdownBadge from '../components/CountdownBadge'
+import { useDragToStatus } from '../hooks/useDragToStatus'
 import type { Application, Task } from '../types'
 
 const statuses: Application['status'][] = [
@@ -37,6 +37,16 @@ const emptyApplication: Omit<Application, 'id' | 'createdAt' | 'updatedAt'> = {
   notes: '',
 }
 
+const CHECKLIST_TEMPLATE = [
+  'Statement of Purpose',
+  'Official Transcripts',
+  'Recommendation Letters',
+  'English Test Scores (IELTS/TOEFL)',
+  'CV / Resume',
+  'Passport Copy',
+  'Application Fee Payment',
+]
+
 const statusConfig: Record<string, { color: string; bg: string }> = {
   'Researching': { color: 'text-muted', bg: 'bg-surface-hover' },
   'Interested': { color: 'text-info', bg: 'bg-info-soft' },
@@ -54,14 +64,15 @@ const statusConfig: Record<string, { color: string; bg: string }> = {
 }
 
 export default function Applications() {
-  const universities = useLiveQuery(() => db.universities.toArray()) || []
-  const programs = useLiveQuery(() => db.programs.toArray()) || []
-  const applications = useLiveQuery(() => db.applications.toArray()) || []
-  const tasks = useLiveQuery(() => db.tasks.toArray()) || []
+  const universities = useCollection('universities')
+  const programs = useCollection('programs')
+  const applications = useCollection('applications')
+  const tasks = useCollection('tasks')
   const [isOpen, setIsOpen] = useState(false)
   const [editing, setEditing] = useState<Application | null>(null)
   const [form, setForm] = useState(emptyApplication)
   const [newChecklistItem, setNewChecklistItem] = useState('')
+  const [applyingTemplate, setApplyingTemplate] = useState(false)
 
   const openCreate = () => {
     setEditing(null)
@@ -96,21 +107,24 @@ export default function Applications() {
         linked.length > 0
           ? Math.round((linked.filter((t) => t.status === 'done').length / linked.length) * 100)
           : form.progress
-      await db.applications.update(editing.id, { ...form, progress, updatedAt: now })
+      await apiDb.applications.update(editing.id, { ...form, progress, updatedAt: now })
     } else {
-      await db.applications.add({
+      const created = await apiDb.applications.add({
         ...form,
         id: crypto.randomUUID(),
         createdAt: now,
         updatedAt: now,
       })
+      // Stay open in edit mode so the checklist (and template) is immediately available.
+      openEdit(created)
+      return
     }
     setIsOpen(false)
   }
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this application?')) {
-      await db.applications.delete(id)
+      await apiDb.applications.delete(id)
     }
   }
 
@@ -125,7 +139,7 @@ export default function Applications() {
 
   const addChecklistItem = async () => {
     if (!editing || !newChecklistItem.trim()) return
-    await db.tasks.add({
+    await apiDb.tasks.add({
       id: crypto.randomUUID(),
       title: newChecklistItem.trim(),
       description: '',
@@ -140,18 +154,49 @@ export default function Applications() {
     setNewChecklistItem('')
   }
 
+  const applyChecklistTemplate = async () => {
+    if (!editing) return
+    setApplyingTemplate(true)
+    try {
+      const existingTitles = new Set(
+        tasks.filter((t) => t.applicationId === editing.id).map((t) => t.title.trim().toLowerCase())
+      )
+      const toAdd = CHECKLIST_TEMPLATE.filter((title) => !existingTitles.has(title.toLowerCase()))
+      for (const title of toAdd) {
+        await apiDb.tasks.add({
+          id: crypto.randomUUID(),
+          title,
+          description: '',
+          applicationId: editing.id,
+          universityId: editing.universityId,
+          priority: 'medium',
+          dueDate: '',
+          status: 'todo',
+          category: 'Application',
+          createdAt: new Date().toISOString(),
+        })
+      }
+    } finally {
+      setApplyingTemplate(false)
+    }
+  }
+
   const toggleChecklistItem = async (task: Task) => {
-    await db.tasks.update(task.id, { status: task.status === 'done' ? 'todo' : 'done' })
+    await apiDb.tasks.update(task.id, { status: task.status === 'done' ? 'todo' : 'done' })
   }
 
   const removeChecklistItem = async (id: string) => {
-    await db.tasks.delete(id)
+    await apiDb.tasks.delete(id)
   }
 
   const grouped = statuses.reduce<Record<string, Application[]>>((acc, status) => {
     acc[status] = applications.filter((a) => a.status === status)
     return acc
   }, {})
+
+  const { draggingId, overStatus, dragProps, columnProps } = useDragToStatus((id, status) =>
+    apiDb.applications.update(id, { status: status as Application['status'] })
+  )
 
   const editingChecklist = editing ? getChecklistStats(editing.id) : null
   const editingChecklistPct =
@@ -200,11 +245,13 @@ export default function Applications() {
         <div className="flex gap-4 overflow-x-auto pb-4">
           {statuses.map((status) => {
             const items = grouped[status] || []
-            if (items.length === 0 && status !== 'Researching' && status !== 'Interested') return null
             return (
               <div
                 key={status}
-                className="min-w-[280px] flex-1 rounded-2xl border border-border bg-surface shadow-sm"
+                {...columnProps(status)}
+                className={`min-w-[280px] flex-1 rounded-2xl border shadow-sm transition-colors ${
+                  overStatus === status ? 'border-primary bg-primary-soft/30' : 'border-border bg-surface'
+                }`}
               >
                 <div className="border-b border-border px-4 py-3">
                   <div className="flex items-center justify-between">
@@ -214,14 +261,20 @@ export default function Applications() {
                     </span>
                   </div>
                 </div>
-                <div className="p-3 space-y-3">
+                <div className="p-3 space-y-3 min-h-[60px]">
+                  {items.length === 0 && (
+                    <p className="py-4 text-center text-xs text-subtle">Drop here</p>
+                  )}
                   {items.map((app) => {
                     const checklist = getChecklistStats(app.id)
                     const pct = checklist.total > 0 ? Math.round((checklist.done / checklist.total) * 100) : app.progress
                     return (
                     <div
                       key={app.id}
-                      className="group relative rounded-xl border border-border bg-page p-3 shadow-sm transition-all duration-200 hover:border-primary/30 hover:shadow-md"
+                      {...dragProps(app.id)}
+                      className={`group relative cursor-grab rounded-xl border border-border bg-page p-3 shadow-sm transition-all duration-200 hover:border-primary/30 hover:shadow-md active:cursor-grabbing ${
+                        draggingId === app.id ? 'opacity-40' : ''
+                      }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
@@ -388,7 +441,7 @@ export default function Applications() {
 
             {!editingChecklist ? (
               <p className="mt-2 text-xs text-subtle italic">
-                Save the application first, then add checklist items (SOP, transcripts, LORs...) from Edit — progress will be tracked automatically.
+                Create the application first — the checklist (with a one-click standard template) appears right after.
               </p>
             ) : (
               <>
@@ -399,9 +452,32 @@ export default function Applications() {
                   />
                 </div>
 
+                {editingChecklist.items.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={applyChecklistTemplate}
+                    disabled={applyingTemplate}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover transition-colors disabled:opacity-50"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {applyingTemplate ? 'Adding…' : 'Add missing standard items'}
+                  </button>
+                )}
+
                 <div className="mt-3 space-y-1.5">
                   {editingChecklist.items.length === 0 ? (
-                    <p className="text-xs text-subtle">No checklist items yet. Add SOP, transcripts, LORs, etc.</p>
+                    <div className="rounded-xl border border-dashed border-border p-4 text-center">
+                      <p className="text-xs text-subtle">No checklist items yet.</p>
+                      <button
+                        type="button"
+                        onClick={applyChecklistTemplate}
+                        disabled={applyingTemplate}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {applyingTemplate ? 'Adding…' : 'Apply Standard Checklist'}
+                      </button>
+                    </div>
                   ) : (
                     editingChecklist.items.map((item) => (
                       <div

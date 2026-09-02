@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Link } from 'react-router-dom'
 import {
   ChevronLeft,
@@ -22,7 +21,7 @@ import {
   addMonths,
   subMonths,
 } from 'date-fns'
-import db from '../db/schema'
+import { useCollection } from '../lib/apiDb'
 
 type CalendarEvent = {
   id: string
@@ -43,10 +42,10 @@ const typeStyles: Record<CalendarEvent['type'], { chip: string; dot: string; lab
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function CalendarView() {
-  const universities = useLiveQuery(() => db.universities.toArray()) || []
-  const programs = useLiveQuery(() => db.programs.toArray()) || []
-  const applications = useLiveQuery(() => db.applications.toArray()) || []
-  const tasks = useLiveQuery(() => db.tasks.toArray()) || []
+  const universities = useCollection('universities')
+  const programs = useCollection('programs')
+  const applications = useCollection('applications')
+  const tasks = useCollection('tasks')
 
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date())

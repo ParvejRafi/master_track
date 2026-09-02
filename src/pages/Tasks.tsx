@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus, Pencil, Trash2, CheckSquare } from 'lucide-react'
-import db from '../db/schema'
+import { Plus, Pencil, Trash2, CheckSquare, Play, XCircle } from 'lucide-react'
+import apiDb, { useCollection } from '../lib/apiDb'
 import Modal from '../components/Modal'
 import type { Task } from '../types'
 import { format, parseISO, isPast, isToday } from 'date-fns'
@@ -29,7 +28,7 @@ const emptyTask: Omit<Task, 'id' | 'createdAt'> = {
 }
 
 export default function Tasks() {
-  const tasks = useLiveQuery(() => db.tasks.toArray()) || []
+  const tasks = useCollection('tasks')
   const [isOpen, setIsOpen] = useState(false)
   const [editing, setEditing] = useState<Task | null>(null)
   const [form, setForm] = useState(emptyTask)
@@ -61,9 +60,9 @@ export default function Tasks() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (editing) {
-      await db.tasks.update(editing.id, form)
+      await apiDb.tasks.update(editing.id, form)
     } else {
-      await db.tasks.add({
+      await apiDb.tasks.add({
         ...form,
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
@@ -74,13 +73,13 @@ export default function Tasks() {
 
   const handleDelete = async (id: string) => {
     if (confirm('Delete this task?')) {
-      await db.tasks.delete(id)
+      await apiDb.tasks.delete(id)
     }
   }
 
   const toggleStatus = async (task: Task) => {
     const next = task.status === 'todo' ? 'in_progress' : task.status === 'in_progress' ? 'done' : 'todo'
-    await db.tasks.update(task.id, { status: next })
+    await apiDb.tasks.update(task.id, { status: next })
   }
 
   const getDueStatus = (dateStr: string) => {
@@ -163,8 +162,11 @@ export default function Tasks() {
                     className={`mt-0.5 rounded-xl border-2 p-2 transition-all duration-200 hover:scale-110 ${
                       task.status === 'done'
                         ? 'border-success bg-success-soft text-success'
+                        : task.status === 'in_progress'
+                        ? 'border-primary bg-primary-soft text-primary'
                         : 'border-border hover:border-primary hover:bg-primary-soft'
                     }`}
+                    title={task.status === 'done' ? 'Mark as todo' : task.status === 'in_progress' ? 'Mark as todo' : 'Mark as done'}
                   >
                     <CheckSquare className="h-4 w-4" />
                   </button>
@@ -197,10 +199,53 @@ export default function Tasks() {
                           {due === 'today' && ' • Today'}
                         </span>
                       )}
+                      <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize ${
+                        task.status === 'done' ? 'bg-success-soft text-success' :
+                        task.status === 'in_progress' ? 'bg-primary-soft text-primary' :
+                        'bg-surface-hover text-muted'
+                      }`}>
+                        {task.status.replace('_', ' ')}
+                      </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity ml-2">
+                  {task.status === 'todo' && (
+                    <button
+                      onClick={() => apiDb.tasks.update(task.id, { status: 'in_progress' })}
+                      className="rounded-lg p-1.5 text-muted transition-colors hover:bg-primary-soft hover:text-primary"
+                      title="Start task"
+                    >
+                      <Play className="h-4 w-4" />
+                    </button>
+                  )}
+                  {task.status === 'in_progress' && (
+                    <button
+                      onClick={() => apiDb.tasks.update(task.id, { status: 'todo' })}
+                      className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-hover hover:text-text"
+                      title="Pause task"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  )}
+                  {task.status !== 'done' && (
+                    <button
+                      onClick={() => apiDb.tasks.update(task.id, { status: 'done' })}
+                      className="rounded-lg p-1.5 text-muted transition-colors hover:bg-success-soft hover:text-success"
+                      title="Mark as done"
+                    >
+                      <CheckSquare className="h-4 w-4" />
+                    </button>
+                  )}
+                  {task.status === 'done' && (
+                    <button
+                      onClick={() => apiDb.tasks.update(task.id, { status: 'in_progress' })}
+                      className="rounded-lg p-1.5 text-muted transition-colors hover:bg-primary-soft hover:text-primary"
+                      title="Reopen task"
+                    >
+                      <Play className="h-4 w-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => openEdit(task)}
                     className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-hover hover:text-text"

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Pencil, Trash2, MapPin, Globe, ExternalLink } from 'lucide-react'
-import db from '../db/schema'
+import apiDb, { useCollection } from '../lib/apiDb'
 import Modal from '../components/Modal'
+import QuickAddSchool from '../components/QuickAddSchool'
 import type { University } from '../types'
 
 const types: University['type'][] = ['Public', 'Private', 'Research', 'Other']
@@ -29,7 +29,7 @@ const emptyUniversity: Omit<University, 'id' | 'createdAt' | 'updatedAt'> = {
 }
 
 export default function Universities() {
-  const universities = useLiveQuery(() => db.universities.toArray()) || []
+  const universities = useCollection('universities')
   const [isOpen, setIsOpen] = useState(false)
   const [editing, setEditing] = useState<University | null>(null)
   const [form, setForm] = useState(emptyUniversity)
@@ -80,9 +80,9 @@ export default function Universities() {
     const now = new Date().toISOString()
     const cleanForm = { ...form, country: form.country.trim(), city: form.city.trim() }
     if (editing) {
-      await db.universities.update(editing.id, { ...cleanForm, updatedAt: now })
+      await apiDb.universities.update(editing.id, { ...cleanForm, updatedAt: now })
     } else {
-      await db.universities.add({
+      await apiDb.universities.add({
         ...cleanForm,
         id: crypto.randomUUID(),
         createdAt: now,
@@ -94,7 +94,7 @@ export default function Universities() {
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this university?')) {
-      await db.universities.delete(id)
+      await apiDb.universities.delete(id)
     }
   }
 
@@ -122,6 +122,7 @@ export default function Universities() {
               ))}
             </select>
           )}
+          <QuickAddSchool variant="outline" />
           <button
             onClick={openCreate}
             className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-primary-hover hover:shadow-md active:scale-95"

@@ -8,13 +8,18 @@ import {
   CalendarDays,
   CheckSquare,
   FileText,
+  StickyNote,
+  Award,
+  Mic,
   Settings,
   ChevronRight,
   X,
+  LogOut,
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 const nav = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/universities', icon: Building2, label: 'Universities' },
   { to: '/programs', icon: GraduationCap, label: 'Programs' },
   { to: '/professors', icon: Users, label: 'Professors' },
@@ -22,10 +27,15 @@ const nav = [
   { to: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
   { to: '/documents', icon: FileText, label: 'Documents' },
+  { to: '/notes', icon: StickyNote, label: 'Notes' },
+  { to: '/scholarships', icon: Award, label: 'Scholarships' },
+  { to: '/conferences', icon: Mic, label: 'Conferences' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 export default function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { username, logout } = useAuth()
+
   return (
     <>
       {open && (
@@ -56,6 +66,13 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           </button>
         </div>
 
+        {username && (
+          <div className="border-b border-border px-4 py-3">
+            <p className="text-xs font-medium text-muted">Account</p>
+            <p className="text-sm font-semibold text-text truncate">{username}</p>
+          </div>
+        )}
+
         <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto">
           {nav.map((item) => (
             <NavLink
@@ -85,13 +102,23 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           ))}
         </nav>
 
-        <div className="border-t border-border p-4">
+        <div className="border-t border-border p-4 space-y-3">
           <div className="rounded-lg bg-gradient-to-br from-primary-soft to-surface p-3 border border-border">
             <p className="text-xs font-medium text-text">Personal Command Center</p>
             <p className="mt-1 text-xs text-muted leading-relaxed">
-              Track universities, applications, deadlines & documents.
+              Track universities, applications, conferences & deadlines.
             </p>
           </div>
+          <button
+            onClick={() => {
+              logout()
+              onClose()
+            }}
+            className="flex w-full items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-semibold text-muted transition-all duration-200 hover:bg-surface-hover hover:text-text active:scale-95"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
         </div>
       </aside>
     </>

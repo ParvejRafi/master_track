@@ -1,0 +1,30 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1>New access codes generated</h1>
+<p>Give each code to the corresponding user through whatever channel you normally use (message, email, in person).
+It will not be shown again after you leave this page — copy it down now.</p>
+
+<table style="margin-top: 1em; border-collapse: collapse; width: 100%; max-width: 700px;">
+  <thead>
+    <tr style="text-align: left; border-bottom: 2px solid #ccc;">
+      <th style="padding: 8px 12px 8px 0;">Username</th>
+      <th style="padding: 8px 12px 8px 0;">Email</th>
+      <th style="padding: 8px 12px 8px 0;">New access code</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in results %}
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 8px 12px 8px 0;">{{ r.username }}</td>
+      <td style="padding: 8px 12px 8px 0;">{{ r.email|default:"—" }}</td>
+      <td style="padding: 8px 12px 8px 0;">
+        <code style="font-size: 1.05em; user-select: all; background: #f1f1f1; padding: 2px 6px; border-radius: 4px;">{{ r.code }}</code>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p style="margin-top: 1.5em;"><a href="{% url 'admin:auth_user_changelist' %}">&larr; Back to users</a></p>
+{% endblock %}
